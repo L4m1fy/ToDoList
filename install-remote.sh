@@ -17,8 +17,14 @@ echo -e "${YELLOW}Cloning repository...${NC}"
 git clone https://github.com/L4m1fy/ToDoList.git
 cd ToDoList
 
-# Make install script executable and run it
+# Make install script executable
 chmod +x install.sh
-./install.sh
+
+# Automatically select option 1 (Install) by piping "1" to the script
+echo "1" | ./install.sh
 
 echo -e "${GREEN}Installation complete!${NC}"
+
+# Clean up
+cd ..
+rm -rf "$TEMP_DIR"
