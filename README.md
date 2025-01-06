@@ -11,75 +11,28 @@ A modern task management application with team communication features and Discor
 - Discord bot integration
 - Dark/Light theme support
 
-## Tech Stack
+## Quick Installation
 
-- Frontend: React.js with Material-UI
-- Backend: Node.js with Express
-- Database: MongoDB
-- Real-time Communication: Socket.IO
-- Authentication: JWT with 2FA support
-- Encryption: CryptoJS
-- Discord Integration: Discord.js
+Simply clone the repository and the installer will run automatically:
 
-## Installation on Linux Server
-
-### Prerequisites
-
-The installer will automatically check and install these dependencies if missing:
-- Node.js 18.x or later
-- MongoDB 6.0 or later
-- Git
-
-### Quick Installation
-
-1. Download the installer script:
 ```bash
-wget https://raw.githubusercontent.com/L4m1fy/ToDoList/main/install.sh
+git clone https://github.com/L4m1fy/ToDoList.git
 ```
 
-2. Make it executable:
+The installer will:
+1. Install required dependencies (Node.js, MongoDB)
+2. Set up the application
+3. Configure the service
+4. Start the application
+
+## Manual Installation
+
+If the automatic installation doesn't start, you can run it manually:
+
 ```bash
 chmod +x install.sh
-```
-
-3. Run the installer:
-```bash
 ./install.sh
 ```
-
-4. Follow the prompts to configure your installation. You will need:
-   - MongoDB URI (optional, defaults to local MongoDB)
-   - JWT Secret (optional, auto-generated if not provided)
-   - Discord Bot Token (required)
-   - Encryption Key (optional, auto-generated if not provided)
-   - Port number (optional, defaults to 3000)
-
-### Post-Installation
-
-After installation:
-- The application will be installed in `/opt/todolist-dc-link`
-- A systemd service will be created and started automatically
-- The application will be accessible at `http://your-server-ip:PORT`
-
-### Managing the Application
-
-- View logs: `sudo journalctl -u todolist-dc-link -f`
-- Start service: `sudo systemctl start todolist-dc-link`
-- Stop service: `sudo systemctl stop todolist-dc-link`
-- Restart service: `sudo systemctl restart todolist-dc-link`
-- Check status: `sudo systemctl status todolist-dc-link`
-
-### Uninstallation
-
-To uninstall the application:
-
-1. Run the installer script:
-```bash
-./install.sh
-```
-
-2. Choose option 2 (Uninstall)
-3. Decide whether to remove MongoDB data when prompted
 
 ## Development Setup
 
