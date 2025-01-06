@@ -13,6 +13,13 @@ A modern task management application with team communication features and Discor
 
 ## Quick Installation
 
+### One-Line Installation (Linux/Mac)
+```bash
+curl -fsSL https://raw.githubusercontent.com/L4m1fy/ToDoList/main/install-remote.sh | bash
+```
+
+### Manual Installation
+
 Simply clone the repository and the installer will run automatically:
 
 ```bash
@@ -24,8 +31,6 @@ The installer will:
 2. Set up the application
 3. Configure the service
 4. Start the application
-
-## Manual Installation
 
 If the automatic installation doesn't start, you can run it manually:
 
