@@ -14,32 +14,82 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Function to install MongoDB
+install_mongodb() {
+    echo -e "${YELLOW}Installing MongoDB...${NC}"
+    
+    # Import MongoDB public key
+    curl -fsSL https://pgp.mongodb.com/server-6.0.asc | \
+        sudo gpg -o /usr/share/keyrings/mongodb-server-6.0.gpg \
+        --dearmor
+    
+    # Create list file for MongoDB
+    echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu $(lsb_release -cs)/mongodb-org/6.0 multiverse" | \
+        sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+    
+    # Update package list and install MongoDB
+    sudo apt-get update
+    sudo apt-get install -y mongodb-org
+    
+    # Start MongoDB service
+    sudo systemctl daemon-reload
+    sudo systemctl start mongod
+    sudo systemctl enable mongod
+    
+    # Wait for MongoDB to start
+    echo -e "${YELLOW}Waiting for MongoDB to start...${NC}"
+    sleep 5
+    
+    # Check if MongoDB is running
+    if systemctl is-active --quiet mongod; then
+        echo -e "${GREEN}MongoDB installed and running successfully${NC}"
+    else
+        echo -e "${RED}Failed to start MongoDB. Please check the logs with: sudo journalctl -u mongod${NC}"
+        exit 1
+    fi
+}
+
+# Function to install Node.js
+install_nodejs() {
+    echo -e "${YELLOW}Installing Node.js...${NC}"
+    
+    # Remove any existing Node.js installations
+    sudo apt-get remove -y nodejs npm
+    sudo apt-get autoremove -y
+    
+    # Install Node.js 18.x
+    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+    
+    # Verify installation
+    if command_exists node && command_exists npm; then
+        echo -e "${GREEN}Node.js installed successfully${NC}"
+        node --version
+        npm --version
+    else
+        echo -e "${RED}Failed to install Node.js${NC}"
+        exit 1
+    fi
+}
+
 # Function to check and install system dependencies
 check_dependencies() {
     echo -e "${YELLOW}Checking system dependencies...${NC}"
     
+    # Update package list
+    sudo apt-get update
+    
+    # Install basic dependencies
+    sudo apt-get install -y curl gnupg git build-essential
+    
     # Check for Node.js
     if ! command_exists node; then
-        echo -e "${RED}Node.js is not installed. Installing...${NC}"
-        curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-        sudo apt-get install -y nodejs
+        install_nodejs
     fi
-
+    
     # Check for MongoDB
-    if ! command_exists mongod; then
-        echo -e "${RED}MongoDB is not installed. Installing...${NC}"
-        wget -qO - https://www.mongodb.org/static/pgp/server-6.0.asc | sudo apt-key add -
-        echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu $(lsb_release -cs)/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
-        sudo apt-get update
-        sudo apt-get install -y mongodb-org
-        sudo systemctl start mongod
-        sudo systemctl enable mongod
-    fi
-
-    # Check for Git
-    if ! command_exists git; then
-        echo -e "${RED}Git is not installed. Installing...${NC}"
-        sudo apt-get install -y git
+    if ! systemctl is-active --quiet mongod; then
+        install_mongodb
     fi
 }
 
@@ -73,7 +123,7 @@ get_config() {
 
 # Function to create environment file
 create_env_file() {
-    cat > .env << EOL
+    cat > "$INSTALL_DIR/.env" << EOL
 MONGODB_URI=${MONGODB_URI}
 JWT_SECRET=${JWT_SECRET}
 DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
@@ -101,9 +151,11 @@ install_app() {
     
     # Install dependencies
     echo -e "${YELLOW}Installing Node.js dependencies...${NC}"
-    npm install
+    npm install --unsafe-perm
+    
+    echo -e "${YELLOW}Installing client dependencies...${NC}"
     cd client
-    npm install
+    npm install --unsafe-perm
     npm run build
     cd ..
     
@@ -117,7 +169,7 @@ After=network.target mongod.service
 Type=simple
 User=$USER
 WorkingDirectory=$INSTALL_DIR
-ExecStart=/usr/bin/npm start
+ExecStart=$(which npm) start
 Restart=always
 Environment=NODE_ENV=production
 
