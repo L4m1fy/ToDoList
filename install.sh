@@ -14,92 +14,6 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Function to install MongoDB
-install_mongodb() {
-    echo -e "${YELLOW}Installing MongoDB...${NC}"
-    
-    # Import MongoDB public key
-    curl -fsSL https://pgp.mongodb.com/server-6.0.asc | \
-        sudo gpg -o /usr/share/keyrings/mongodb-server-6.0.gpg \
-        --dearmor
-
-    # Detect Ubuntu version
-    UBUNTU_VERSION=$(lsb_release -cs)
-    
-    # Create list file for MongoDB
-    echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu ${UBUNTU_VERSION}/mongodb-org/6.0 multiverse" | \
-        sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
-    
-    # Update package list and install MongoDB
-    sudo apt-get update
-    sudo apt-get install -y mongodb-org
-
-    # Create MongoDB data and log directories
-    sudo mkdir -p /var/lib/mongodb
-    sudo mkdir -p /var/log/mongodb
-    sudo chown -R mongodb:mongodb /var/lib/mongodb
-    sudo chown -R mongodb:mongodb /var/log/mongodb
-    
-    # Create MongoDB service file
-    sudo bash -c 'cat > /etc/systemd/system/mongod.service << EOL
-[Unit]
-Description=MongoDB Database Server
-Documentation=https://docs.mongodb.org/manual
-After=network.target
-
-[Service]
-User=mongodb
-Group=mongodb
-ExecStart=/usr/bin/mongod --config /etc/mongod.conf
-PIDFile=/var/run/mongodb/mongod.pid
-LimitFSIZE=infinity
-LimitCPU=infinity
-LimitAS=infinity
-LimitNOFILE=64000
-LimitNPROC=64000
-
-[Install]
-WantedBy=multi-user.target
-EOL'
-
-    # Create MongoDB configuration file
-    sudo bash -c 'cat > /etc/mongod.conf << EOL
-storage:
-  dbPath: /var/lib/mongodb
-  journal:
-    enabled: true
-
-systemLog:
-  destination: file
-  logAppend: true
-  path: /var/log/mongodb/mongod.log
-
-net:
-  port: 27017
-  bindIp: 127.0.0.1
-
-processManagement:
-  timeZoneInfo: /usr/share/zoneinfo
-EOL'
-    
-    # Start MongoDB service
-    sudo systemctl daemon-reload
-    sudo systemctl start mongod
-    sudo systemctl enable mongod
-    
-    # Wait for MongoDB to start
-    echo -e "${YELLOW}Waiting for MongoDB to start...${NC}"
-    sleep 10
-    
-    # Check if MongoDB is running
-    if systemctl is-active --quiet mongod; then
-        echo -e "${GREEN}MongoDB installed and running successfully${NC}"
-    else
-        echo -e "${RED}Failed to start MongoDB. Please check the logs with: sudo journalctl -u mongod${NC}"
-        exit 1
-    fi
-}
-
 # Function to install Node.js
 install_nodejs() {
     echo -e "${YELLOW}Installing Node.js...${NC}"
@@ -110,15 +24,7 @@ install_nodejs() {
     
     # Install Node.js 18.x
     curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-    sudo apt-get install -y nodejs
-
-    # Create npm configuration directory
-    mkdir -p ~/.npm-global
-    npm config set prefix '~/.npm-global'
-    
-    # Add npm global path to environment
-    echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.profile
-    source ~/.profile
+    sudo apt-get install -y nodejs build-essential sqlite3
     
     # Verify installation
     if command_exists node && command_exists npm; then
@@ -139,26 +45,17 @@ check_dependencies() {
     sudo apt-get update
     
     # Install basic dependencies
-    sudo apt-get install -y curl gnupg git build-essential
+    sudo apt-get install -y curl git build-essential sqlite3
     
     # Check for Node.js
     if ! command_exists node; then
         install_nodejs
-    fi
-    
-    # Check for MongoDB
-    if ! systemctl is-active --quiet mongod; then
-        install_mongodb
     fi
 }
 
 # Function to get configuration values from user
 get_config() {
     echo -e "${YELLOW}Please provide the following configuration values:${NC}"
-    
-    # MongoDB URI
-    read -p "MongoDB URI (default: mongodb://localhost:27017/todolist_dc_link): " MONGODB_URI
-    MONGODB_URI=${MONGODB_URI:-"mongodb://localhost:27017/todolist_dc_link"}
     
     # JWT Secret
     read -p "JWT Secret (leave empty for auto-generated): " JWT_SECRET
@@ -183,7 +80,6 @@ get_config() {
 # Function to create environment file
 create_env_file() {
     cat > "$INSTALL_DIR/.env" << EOL
-MONGODB_URI=${MONGODB_URI}
 JWT_SECRET=${JWT_SECRET}
 DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
 ENCRYPTION_KEY=${ENCRYPTION_KEY}
@@ -210,7 +106,6 @@ install_app() {
     
     # Install dependencies
     echo -e "${YELLOW}Installing Node.js dependencies...${NC}"
-    export PATH=~/.npm-global/bin:$PATH
     npm install
     
     echo -e "${YELLOW}Installing client dependencies...${NC}"
@@ -219,19 +114,21 @@ install_app() {
     npm run build
     cd ..
     
+    # Create data directory
+    mkdir -p data
+    
     # Create systemd service
-    sudo bash -c "cat > /etc/systemd/system/todolist-dc-link.service << EOL
+    sudo bash -c "cat > /lib/systemd/system/todolist-dc-link.service << EOL
 [Unit]
 Description=ToDoList DC-Link Application
-After=network.target mongod.service
+After=network.target
 
 [Service]
 Type=simple
 User=$USER
 WorkingDirectory=$INSTALL_DIR
-Environment=PATH=/usr/bin:/usr/local/bin:$HOME/.npm-global/bin
 Environment=NODE_ENV=production
-ExecStart=$HOME/.npm-global/bin/npm start
+ExecStart=/usr/bin/npm start
 Restart=always
 
 [Install]
@@ -240,8 +137,8 @@ EOL"
     
     # Start and enable the service
     sudo systemctl daemon-reload
-    sudo systemctl start todolist-dc-link
     sudo systemctl enable todolist-dc-link
+    sudo systemctl start todolist-dc-link
     
     echo -e "${GREEN}Installation completed successfully!${NC}"
     echo -e "The application is running at http://localhost:${PORT}"
@@ -255,21 +152,13 @@ uninstall_app() {
     # Stop and disable the service
     sudo systemctl stop todolist-dc-link
     sudo systemctl disable todolist-dc-link
-    sudo rm /etc/systemd/system/todolist-dc-link.service
+    sudo rm /lib/systemd/system/todolist-dc-link.service
     sudo systemctl daemon-reload
     
     # Remove installation directory
     sudo rm -rf "$INSTALL_DIR"
     
     echo -e "${GREEN}Uninstallation completed successfully!${NC}"
-    
-    # Ask if user wants to remove MongoDB data
-    read -p "Do you want to remove MongoDB data? (y/N): " REMOVE_MONGO
-    if [ "${REMOVE_MONGO,,}" = "y" ]; then
-        sudo systemctl stop mongod
-        sudo rm -rf /var/lib/mongodb
-        echo -e "${GREEN}MongoDB data removed.${NC}"
-    fi
 }
 
 # Main script
