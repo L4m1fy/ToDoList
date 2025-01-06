@@ -22,14 +22,65 @@ install_mongodb() {
     curl -fsSL https://pgp.mongodb.com/server-6.0.asc | \
         sudo gpg -o /usr/share/keyrings/mongodb-server-6.0.gpg \
         --dearmor
+
+    # Detect Ubuntu version
+    UBUNTU_VERSION=$(lsb_release -cs)
     
     # Create list file for MongoDB
-    echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu $(lsb_release -cs)/mongodb-org/6.0 multiverse" | \
+    echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu ${UBUNTU_VERSION}/mongodb-org/6.0 multiverse" | \
         sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
     
     # Update package list and install MongoDB
     sudo apt-get update
     sudo apt-get install -y mongodb-org
+
+    # Create MongoDB data and log directories
+    sudo mkdir -p /var/lib/mongodb
+    sudo mkdir -p /var/log/mongodb
+    sudo chown -R mongodb:mongodb /var/lib/mongodb
+    sudo chown -R mongodb:mongodb /var/log/mongodb
+    
+    # Create MongoDB service file
+    sudo bash -c 'cat > /etc/systemd/system/mongod.service << EOL
+[Unit]
+Description=MongoDB Database Server
+Documentation=https://docs.mongodb.org/manual
+After=network.target
+
+[Service]
+User=mongodb
+Group=mongodb
+ExecStart=/usr/bin/mongod --config /etc/mongod.conf
+PIDFile=/var/run/mongodb/mongod.pid
+LimitFSIZE=infinity
+LimitCPU=infinity
+LimitAS=infinity
+LimitNOFILE=64000
+LimitNPROC=64000
+
+[Install]
+WantedBy=multi-user.target
+EOL'
+
+    # Create MongoDB configuration file
+    sudo bash -c 'cat > /etc/mongod.conf << EOL
+storage:
+  dbPath: /var/lib/mongodb
+  journal:
+    enabled: true
+
+systemLog:
+  destination: file
+  logAppend: true
+  path: /var/log/mongodb/mongod.log
+
+net:
+  port: 27017
+  bindIp: 127.0.0.1
+
+processManagement:
+  timeZoneInfo: /usr/share/zoneinfo
+EOL'
     
     # Start MongoDB service
     sudo systemctl daemon-reload
@@ -38,7 +89,7 @@ install_mongodb() {
     
     # Wait for MongoDB to start
     echo -e "${YELLOW}Waiting for MongoDB to start...${NC}"
-    sleep 5
+    sleep 10
     
     # Check if MongoDB is running
     if systemctl is-active --quiet mongod; then
@@ -60,6 +111,14 @@ install_nodejs() {
     # Install Node.js 18.x
     curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
     sudo apt-get install -y nodejs
+
+    # Create npm configuration directory
+    mkdir -p ~/.npm-global
+    npm config set prefix '~/.npm-global'
+    
+    # Add npm global path to environment
+    echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.profile
+    source ~/.profile
     
     # Verify installation
     if command_exists node && command_exists npm; then
@@ -151,11 +210,12 @@ install_app() {
     
     # Install dependencies
     echo -e "${YELLOW}Installing Node.js dependencies...${NC}"
-    npm install --unsafe-perm
+    export PATH=~/.npm-global/bin:$PATH
+    npm install
     
     echo -e "${YELLOW}Installing client dependencies...${NC}"
     cd client
-    npm install --unsafe-perm
+    npm install
     npm run build
     cd ..
     
@@ -169,9 +229,10 @@ After=network.target mongod.service
 Type=simple
 User=$USER
 WorkingDirectory=$INSTALL_DIR
-ExecStart=$(which npm) start
-Restart=always
+Environment=PATH=/usr/bin:/usr/local/bin:$HOME/.npm-global/bin
 Environment=NODE_ENV=production
+ExecStart=$HOME/.npm-global/bin/npm start
+Restart=always
 
 [Install]
 WantedBy=multi-user.target
