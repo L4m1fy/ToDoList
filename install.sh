@@ -58,21 +58,22 @@ get_config() {
     echo -e "${YELLOW}Please provide the following configuration values:${NC}"
     
     # JWT Secret
+    read -p "JWT Secret (leave empty for auto-generated): " JWT_SECRET
     JWT_SECRET=${JWT_SECRET:-$(openssl rand -hex 32)}
     
     # Discord Bot Token
-    if [ -z "$DISCORD_BOT_TOKEN" ]; then
+    read -p "Discord Bot Token: " DISCORD_BOT_TOKEN
+    while [ -z "$DISCORD_BOT_TOKEN" ]; do
+        echo -e "${RED}Discord Bot Token is required!${NC}"
         read -p "Discord Bot Token: " DISCORD_BOT_TOKEN
-        while [ -z "$DISCORD_BOT_TOKEN" ]; do
-            echo -e "${RED}Discord Bot Token is required!${NC}"
-            read -p "Discord Bot Token: " DISCORD_BOT_TOKEN
-        done
-    fi
+    done
     
     # Encryption Key
+    read -p "Encryption Key (leave empty for auto-generated): " ENCRYPTION_KEY
     ENCRYPTION_KEY=${ENCRYPTION_KEY:-$(openssl rand -hex 32)}
     
     # Port
+    read -p "Port (default: 3000): " PORT
     PORT=${PORT:-3000}
 }
 
@@ -171,9 +172,8 @@ echo "ToDoList DC-Link Installer"
 echo "1. Install"
 echo "2. Uninstall"
 
-# Read option, with a default of 1 if no input is provided
-read -t 5 -p "Choose an option (1/2) [Default: 1]: " OPTION || true
-OPTION=${OPTION:-1}
+# Read option with no timeout
+read -p "Choose an option (1/2): " OPTION
 
 case $OPTION in
     1)

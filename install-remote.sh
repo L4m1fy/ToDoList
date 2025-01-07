@@ -20,8 +20,8 @@ cd ToDoList
 # Make install script executable
 chmod +x install.sh
 
-# Automatically select option 1 (Install) by piping "1" to the script
-echo "1" | ./install.sh
+# Run the installer
+./install.sh
 
 echo -e "${GREEN}Installation complete!${NC}"
 
