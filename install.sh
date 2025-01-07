@@ -26,6 +26,19 @@ install_nodejs() {
     curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
     sudo apt-get install -y nodejs build-essential sqlite3
     
+    # Configure npm to use global directory without sudo
+    mkdir -p ~/.npm-global
+    npm config set prefix '~/.npm-global'
+    
+    # Add npm global path to profile
+    if ! grep -q "export PATH=~/.npm-global/bin:\$PATH" ~/.profile; then
+        echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.profile
+    fi
+    
+    # Source the profile
+    export PATH=~/.npm-global/bin:$PATH
+    source ~/.profile
+    
     # Verify installation
     if command_exists node && command_exists npm; then
         echo -e "${GREEN}Node.js installed successfully${NC}"
@@ -134,7 +147,8 @@ Type=simple
 User=$USER
 WorkingDirectory=$INSTALL_DIR
 Environment=NODE_ENV=production
-ExecStart=/usr/bin/npm start
+Environment=PATH=/usr/bin:/usr/local/bin:$HOME/.npm-global/bin
+ExecStart=$HOME/.npm-global/bin/npm start
 Restart=always
 
 [Install]
@@ -145,6 +159,20 @@ EOL"
     sudo systemctl daemon-reload
     sudo systemctl enable todolist-dc-link
     sudo systemctl start todolist-dc-link
+    
+    # Wait for the service to start
+    echo -e "${YELLOW}Waiting for service to start...${NC}"
+    sleep 10
+    
+    # Check service status
+    if sudo systemctl is-active --quiet todolist-dc-link; then
+        echo -e "${GREEN}Service is running${NC}"
+        sudo systemctl status todolist-dc-link --no-pager
+    else
+        echo -e "${RED}Service failed to start. Checking logs...${NC}"
+        sudo journalctl -u todolist-dc-link --no-pager -n 50
+        exit 1
+    fi
     
     echo -e "${GREEN}Installation completed successfully!${NC}"
     echo -e "The application is running at http://localhost:${PORT}"
