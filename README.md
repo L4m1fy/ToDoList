@@ -1,53 +1,44 @@
 # ToDoList DC-Link
 
-A modern task management application with team communication features and Discord integration.
+A modern to-do list application with team communication and Discord integration.
 
 ## Features
 
-- User authentication with optional 2FA
-- Project management
-- Task management
-- Real-time team chat
-- Discord bot integration
-- Dark/Light theme support
+- Task Management
+- Team Chat
+- Discord Integration
+- Real-time Updates
+- User Authentication
 
 ## Quick Installation
 
-### One-Line Installation (Linux/Mac)
-```bash
-curl -fsSL https://raw.githubusercontent.com/L4m1fy/ToDoList/main/install-remote.sh | bash
-```
-
-### Manual Installation
-
-Simply clone the repository and the installer will run automatically:
+Run this command to start the interactive installation:
 
 ```bash
-git clone https://github.com/L4m1fy/ToDoList.git
+bash <(curl -fsSL https://raw.githubusercontent.com/L4m1fy/ToDoList/main/install-remote.sh)
 ```
 
 The installer will:
-1. Install required dependencies (Node.js, MongoDB)
-2. Set up the application
-3. Configure the service
-4. Start the application
+1. Ask if you want to install or uninstall
+2. Install required dependencies (Node.js, SQLite)
+3. Ask for your Discord Bot Token
+4. Set up the application
+5. Start the service
 
-If the automatic installation doesn't start, you can run it manually:
+## Manual Installation
+
+If you prefer to install manually:
 
 ```bash
+git clone https://github.com/L4m1fy/ToDoList.git
+cd ToDoList
 chmod +x install.sh
 ./install.sh
 ```
 
 ## Development Setup
 
-1. Clone the repository:
-```bash
-git clone https://github.com/L4m1fy/ToDoList.git
-cd ToDoList
-```
-
-2. Install dependencies:
+1. Install dependencies:
 ```bash
 npm install
 cd client
@@ -55,9 +46,8 @@ npm install
 cd ..
 ```
 
-3. Create a `.env` file in the root directory with the following variables:
-```env
-MONGODB_URI=mongodb://localhost:27017/todolist_dc_link
+2. Create a `.env` file with the following variables:
+```
 JWT_SECRET=your_jwt_secret
 DISCORD_BOT_TOKEN=your_discord_bot_token
 ENCRYPTION_KEY=your_encryption_key
@@ -65,36 +55,33 @@ PORT=3000
 NODE_ENV=development
 ```
 
-4. Start the development server:
+3. Start the development server:
 ```bash
+# Start the backend
 npm run dev
+
+# In another terminal, start the frontend
+cd client
+npm start
 ```
 
-## Project Structure
+## Environment Variables
 
+- `JWT_SECRET`: Secret key for JWT token generation
+- `DISCORD_BOT_TOKEN`: Your Discord bot token
+- `ENCRYPTION_KEY`: Key for encrypting chat messages
+- `PORT`: Port number for the server (default: 3000)
+- `NODE_ENV`: Environment mode (development/production)
+
+## Uninstallation
+
+To uninstall the application:
+
+```bash
+./install.sh
+# Choose option 2 (Uninstall)
 ```
-├── client/             # Frontend React application
-├── server/             # Backend Node.js server
-├── discord-bot/        # Discord bot implementation
-├── config/            # Configuration files
-└── docs/             # Documentation
-```
-
-## Security
-
-- All passwords are hashed using bcrypt
-- Chat messages are encrypted using AES-256
-- Optional 2FA using TOTP
-- JWT for secure authentication
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+ISC
