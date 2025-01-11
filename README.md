@@ -81,7 +81,3 @@ To uninstall the application:
 ./install.sh
 # Choose option 2 (Uninstall)
 ```
-
-## License
-
-ISC
